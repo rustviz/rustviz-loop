@@ -225,7 +225,7 @@ pub fn add_events(
             .collect();
         let mut field = Vec::new();
         if split.len() == 1 { // no "->"
-            if(&split[0][split[0].len()-2..split[0].len()] == String::from("()")) {
+            if &split[0][split[0].len()-2..split[0].len()] == String::from("()") {
                 cond_flag = true;
             }
             // println!("len is 1");
@@ -233,7 +233,7 @@ pub fn add_events(
             // println!("{}", &idx);
             field.push(&split[0][..idx]); // event
             // println!("event {}", &split[0][..idx]);
-            if(cond_flag == false) {
+            if cond_flag == false {
                 field.push(&split[0][idx+1..split[0].len()-1]); // name
             }
            
@@ -343,7 +343,7 @@ pub fn add_events(
                 &(event.0 as usize)
             ),
             "StartIf" => {
-                println!("StartIf");
+                // println!("StartIf");
                 vd.append_external_event(
                     ExternalEvent::StartIf{
     
@@ -352,7 +352,7 @@ pub fn add_events(
                 );
             } 
             "StartElse" => {
-                println!("StartElse");
+                // println!("StartElse");
                 vd.append_external_event(
                     ExternalEvent::StartElse{
     
@@ -361,13 +361,31 @@ pub fn add_events(
                 );
             }
             "EndJoint" => {
-                println!("End");
+                // println!("End");
                 vd.append_external_event(
                     ExternalEvent::EndJoint{
     
                     },
                     &(event.0 as usize)
                 );
+            }
+            "StartLoop" => {
+              // println!("StartLoop");
+              vd.append_external_event(
+                  ExternalEvent::StartLoop{
+
+                  },
+                  &(event.0 as usize)
+              );
+            }
+            "EndLoop" => {
+              // println!("EndLoop");
+              vd.append_external_event(
+                  ExternalEvent::EndLoop{
+
+                  },
+                  &(event.0 as usize)
+              );
             }
             _ => {
                 eprintln!("{} is not a valid event.", field[0]);

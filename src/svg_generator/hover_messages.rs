@@ -540,3 +540,11 @@ pub fn start_cond(my_name: &String) -> String {
 pub fn end_cond() -> String {
     format!("finsihes an entire conditional block")
 }
+
+pub fn start_loop(my_name: &String) -> String {
+  format!("{0} owns a resource at the start of every iteration of the loop", my_name)
+}
+
+pub fn end_loop() -> String {
+  format!("exit a loop")
+}

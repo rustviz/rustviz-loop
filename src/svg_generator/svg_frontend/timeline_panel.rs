@@ -119,21 +119,21 @@ struct OutputStringData {
     struct_members: String
 }
 
-#[derive(Serialize, Clone)]
-struct IfLineData {
-    x1: i64,
-    x2: i64,
-    y1: i64,
-    y2: i64,
-}
+// #[derive(Serialize, Clone)]
+// struct IfLineData {
+//     x1: i64,
+//     x2: i64,
+//     y1: i64,
+//     y2: i64,
+// }
 
-#[derive(Serialize, Clone)]
-struct ElseLineData {
-    x1: i64,
-    x2: i64,
-    y1: i64,
-    y2: i64,
-}
+// #[derive(Serialize, Clone)]
+// struct ElseLineData {
+//     x1: i64,
+//     x2: i64,
+//     y1: i64,
+//     y2: i64,
+// }
 
 pub fn render_timeline_panel(visualization_data : & mut VisualizationData) -> (String, i32) {
     /* Template creation */
@@ -450,6 +450,12 @@ fn render_arrows_string_external_events_version(
             ExternalEvent::EndJoint{} => {
                 is_in_if = false;
             }
+            ExternalEvent::StartLoop{} => {
+              is_in_if = true;
+            }
+            ExternalEvent::EndLoop{} => {
+                is_in_if = false;
+            }
             ExternalEvent::Bind{ from: from_ro, to: to_ro } => {
                 let mut from_is_func = false;
                 let mut to_is_func = false;
@@ -687,8 +693,7 @@ fn render_arrows_string_external_events_version(
                 let mut to_is_func = false;
                 if(is_in_if) {
                     if let Some(tmp_rap) = from_ro{
-                        println!("passbystaticref{}", tmp_rap.hash());
-                        println!("passbystaticref{}", tmp_rap.name());
+                        println!("passbystaticref hash:{}, name: {}", tmp_rap.hash(), tmp_rap.name());
                         match (tmp_rap){
                             ResourceAccessPoint::Function(_) => {
                                 from_is_func = true;
@@ -698,8 +703,7 @@ fn render_arrows_string_external_events_version(
                     }
 
                     if let Some(tmpt_rap) = to_ro{
-                        println!("passbystaticreft{}", tmpt_rap.hash());
-                        println!("passbystaticreft{}", tmpt_rap.name());
+                        println!("passbystaticreft hash:{}, name: {}", tmpt_rap.hash(), tmpt_rap.name());
                         match (tmpt_rap){
                             ResourceAccessPoint::Function(_) => {
                                 to_is_func = true;
@@ -946,8 +950,9 @@ fn render_arrows_string_external_events_version(
             (_, _, ExternalEvent::StartIf {}) => {
                 // println!("{}", &set_RAP.len());
                 for rap in &set_RAP { 
-                    let styled_stmt_name = String::from("Enters an If block");
+                    let styled_stmt_name = String::from("Enter an If block");
                     if let Some(tmp_rap) = rap{
+                        // println!("====================Debug=================");
                         // for (hash, column_data) in resource_owners_layout.iter() {
                         //     println!("i{}", &hash);
                         //     println!("{}", column_data.x_val);
@@ -955,6 +960,7 @@ fn render_arrows_string_external_events_version(
                         // }
                         // println!("{}",resource_owners_layout.len());
                         // println!("{}", &(tmp_rap.hash()));
+                        // ////////////////////////////////////////////////////////////
                         let x1 = resource_owners_layout[&(tmp_rap.hash())].x_val - 1;
                         // let x1 = 0;
                         let x2 = x1;
@@ -973,7 +979,7 @@ fn render_arrows_string_external_events_version(
             },
             (_, _, ExternalEvent::StartElse {}) => {
                 for rap in &set_RAP {
-                    let styled_stmt_name = String::from("Enters an Else block");
+                    let styled_stmt_name = String::from("Enter an Else block");
                     if let Some(tmp_rap) = rap {
                         let x1 = resource_owners_layout[&(tmp_rap.hash())].x_val + 3;
                         let x2 = x1;
@@ -992,8 +998,18 @@ fn render_arrows_string_external_events_version(
 
             (_, _, ExternalEvent::EndJoint {}) => {
                 for rap in &set_RAP {
-                    let styled_stmt_name = String::from("Finishes an entire conditional block");
+                    let styled_stmt_name = String::from("Finish an entire conditional block");
                     if let Some(tmp_rap) = rap {
+                        // debug
+                        // println!("====================Debug=================");
+                        // for (hash, column_data) in resource_owners_layout.iter() {
+                        //     println!("i{}", &hash);
+                        //     println!("{}", column_data.x_val);
+                        //     println!("{}", column_data.name);
+                        // }
+                        // println!("{}",resource_owners_layout.len());
+                        // println!("{}", &(tmp_rap.hash()));
+                        ///////////
                         let x1 = resource_owners_layout[&(tmp_rap.hash())].x_val + 3;
                         let x2 = x1;
                         let y1 = get_y_axis_pos(*line_number);
@@ -1008,6 +1024,44 @@ fn render_arrows_string_external_events_version(
                     }
                 }
             },
+
+            (_, _, ExternalEvent::StartLoop {}) => {
+              for rap in &set_RAP {
+                  let styled_stmt_name = String::from("Enter a Loop");
+                  if let Some(tmp_rap) = rap {
+                      let x1 = resource_owners_layout[&(tmp_rap.hash())].x_val + 3;
+                      let x2 = x1;
+                      let y1 = get_y_axis_pos(*line_number);
+                      let function_data = FunctionLogoData {
+                          x: x1 + 3,
+                          y: y1 + 5,
+                          hash: tmp_rap.hash().to_owned() as u64,
+                          title: styled_stmt_name,
+                          stmtext: String::from("Loop"),
+                      };
+                      output.get_mut(&-1).unwrap().0.dots.push_str(&registry.render("function_logo_template", &function_data).unwrap());
+                  }
+              }
+          },
+
+          (_, _, ExternalEvent::EndLoop {}) => {
+            for rap in &set_RAP {
+                let styled_stmt_name = String::from("Exit a Loop");
+                if let Some(tmp_rap) = rap {
+                    let x1 = resource_owners_layout[&(tmp_rap.hash())].x_val + 3;
+                    let x2 = x1;
+                    let y1 = get_y_axis_pos(*line_number);
+                    let function_data = FunctionLogoData {
+                        x: x1 + 3,
+                        y: y1 + 5,
+                        hash: tmp_rap.hash().to_owned() as u64,
+                        title: styled_stmt_name,
+                        stmtext: String::from("EndLoop"),
+                    };
+                    output.get_mut(&-1).unwrap().0.dots.push_str(&registry.render("function_logo_template", &function_data).unwrap());
+                }
+            }
+          },
             _ => (), // don't support other cases for now
         }
         // draw arrow only if data.x1 is not default value
@@ -1220,10 +1274,10 @@ fn render_timelines(
         for (line_start, line_end, afterElse, prevState, ifState, elseState) in rap_states.iter() {
             // println!("{} -> start: {}, end: {}, state: {}", visualization_data.get_name_from_hash(hash).unwrap(), line_start, line_end, state); // DEBUG PURPOSES
             
-            println!("{}, {}, {}", prevState, ifState, elseState);
+            // println!("{}, {}, {}", prevState, ifState, elseState);
             match (prevState, ifState, elseState) {
                 (_, State::OutOfScope, State::OutOfScope) | (_, _, State::OutOfScope)=> {
-                    println!("before if or after else");
+                    // println!("before if or after else");
                     // before if and after else
                     let data = match rap {
                         ResourceAccessPoint::Function(_) => None,
@@ -1270,7 +1324,7 @@ fn render_timelines(
                 //     }
                 // },
                 _ => {
-                    println!("between if else");
+                    // println!("between if else");
                     // between if else
                     let ifData = match rap {
                         ResourceAccessPoint::Function(_) => None,

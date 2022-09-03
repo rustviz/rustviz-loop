@@ -3,6 +3,7 @@ use std::vec::Vec;
 use std::fmt::{Formatter, Result, Display};
 use crate::data::Event::*;
 use crate::hover_messages;
+use crate::svg_frontend::code_panel;
 use std::ops::{Index, IndexMut};
 /*
  * Basic Data Structure Needed by Lifetime Visualization
@@ -244,6 +245,10 @@ pub enum ExternalEvent {
     EndJoint{
 
     },
+    StartLoop {
+    },
+    EndLoop {
+    },
 }
 
 
@@ -339,6 +344,8 @@ pub enum Event {
     StartElse,
     // this happens when the entire conditional block finishes.
     EndJoint,
+    StartLoop,
+    EndLoop,
 }
 
 // A State is a description of a ResourceAccessPoint IMMEDIATELY AFTER a specific line.
@@ -455,10 +462,12 @@ impl Display for Event {
             Event::InitRefParam{ param: _ } => { "Function parameter is initialized" },
             Event::OwnerGoOutOfScope => { "Goes out of Scope as an owner of resource" },
             Event::RefGoOutOfScope => { "Goes out of Scope as a reference to resource" },
-            Event::StartIf => {"Enters an if block"},
-            Event::StartElse => {"Enters an else block"},
+            Event::StartIf => {"Enter an if block"},
+            Event::StartElse => {"Enter an else block"},
             Event::EndJoint => {"Finishes an entire conditional block)"},
-        }.to_string();
+            Event::StartLoop => {"Enter a loop"},
+            Event::EndLoop => {"Exit a loop"},
+          }.to_string();
 
         if let Some(from_ro) = from_ro {
             display = format!("{} from {}", display, &(from_ro.name()));
@@ -528,14 +537,22 @@ impl Event {
             }
             StartIf => { 
                 // my_name should be if
-                hover_messages::start_cond(my_name)
+                let cond_name = String::from("if");
+                hover_messages::start_cond(&cond_name)
             }
             StartElse => {
-                 // my_name should be else
-                hover_messages::start_cond(my_name)
+                // my_name should be else
+                let cond_name = String::from("else");
+                hover_messages::start_cond(&cond_name)
             }
             EndJoint => {
                 hover_messages::end_cond()
+            }
+            StartLoop => {
+              hover_messages::start_loop(my_name)
+            }
+            EndLoop => {
+              hover_messages::end_loop()
             }
         } 
     }
@@ -639,8 +656,31 @@ impl Visualizable for VisualizationData {
         match (previous_state, event) {
             (State::Invalid, _) =>
                 State::Invalid,
+            (_, Event::StartLoop{}) => {
+                if let Some(tmp_vec) = self.variable_state_map.get_mut(&hash) {
+                  tmp_vec.push((*previous_state).clone());
+                  (*previous_state).clone()
+                } else {
+                  let vec = vec![(*previous_state).clone()];
+                    self.variable_state_map.insert(hash.clone(), vec);
+                    (*previous_state).clone()
+                }
+            }
+            (_, Event::EndLoop{}) => {
+              if let Some(tmp_vec) = self.variable_state_map.get_mut(&hash) {
+                tmp_vec.push((*previous_state).clone());
+                (*previous_state).clone()
+              } else {
+                let vec = vec![(*previous_state).clone()];
+                  self.variable_state_map.insert(hash.clone(), vec);
+                  (*previous_state).clone()
+              }
+          }
+            (_, Event::EndLoop{}) => 
+              (*previous_state).clone(),
             (_, Event::StartIf {}) => {
                 // println!("matched if");
+                // let Some(tmp_vec) = self.variable_state_map.get_mut(&hash);
                 if let Some(tmp_vec) = self.variable_state_map.get_mut(&hash) {
                     tmp_vec.push((*previous_state).clone());
 // for debug purpose
@@ -671,7 +711,7 @@ impl Visualizable for VisualizationData {
                 }
             }
             (_, Event::StartElse {}) => {
-                println!("matched else");
+                // println!("matched else");
                 if let Some(tmp_vec) = self.variable_state_map.get_mut(&hash) {
                     // for debug purpose
                     // println!("should always be executed{}", hash);
@@ -890,27 +930,27 @@ impl Visualizable for VisualizationData {
                 );
             }
             flag = false;
-            println!("{}", event);
+            // println!("{}", event);
             match event {
                 Event::StartIf => {
-                    println!("Event::StartIf");
+                    // println!("Event::StartIf");
                     if_state = prev_state.clone();
                     else_state = prev_state.clone();
                 }
                 Event::StartElse => {
-                    println!("Event::StartElse");
+                    // println!("Event::StartElse");
                     // prev_state = State::OutOfScope;
                     flag = true;
                 }
                 Event::EndJoint => {
-                    println!("Event::EndJoint");
+                    // println!("Event::EndJoint");
                     else_state = State::OutOfScope;
                 }
                 _ => {
-                    println!("Other Events");
+                    // println!("Other Events");
                 }
             }
-            println!("{}, {}, {}", prev_state, if_state, else_state);
+            // println!("{}, {}, {}", prev_state, if_state, else_state);
 
             prev_state = self.calc_state(&prev_state, &event, *line_number, hash);
             previous_line_number = *line_number;
@@ -1101,6 +1141,13 @@ impl Visualizable for VisualizationData {
             ExternalEvent::StartIf{} => {
                 // {hash, Timeline{rap, history}}
                 for (hash, timeline) in self.timelines.clone().iter() {
+                    // match self.timelines[hash].resource_access_point.clone() {
+                    //   ResourceAccessPoint::Owner(_) => println!("Owner"),
+                    //   ResourceAccessPoint::MutRef(_) => println!("MutRef"),
+                    //   ResourceAccessPoint::StaticRef(_) => println!("StaticRef"),
+                    //   ResourceAccessPoint::Function(_) => println!("Function"),
+                    //   ResourceAccessPoint::Struct(_) => println!("Struct"),
+                    // }
                     match timeline.resource_access_point {
                         ResourceAccessPoint::Function(_) => {}
                         _ => { maybe_append_event(self, &Some(self.timelines[hash].resource_access_point.clone()), Event::StartIf, &line_number); }
@@ -1125,6 +1172,35 @@ impl Visualizable for VisualizationData {
                     }
                 }
             }
+            ExternalEvent::StartLoop{} => {
+              for (hash, timeline) in self.timelines.clone().iter() {
+                    match self.timelines[hash].resource_access_point.clone() {
+                      ResourceAccessPoint::Owner(_) => println!("Owner"),
+                      ResourceAccessPoint::MutRef(_) => println!("MutRef"),
+                      ResourceAccessPoint::StaticRef(_) => println!("StaticRef"),
+                      ResourceAccessPoint::Function(_) => println!("Function"),
+                      ResourceAccessPoint::Struct(_) => println!("Struct"),
+                    }
+                  match timeline.resource_access_point {
+                      ResourceAccessPoint::Function(_) => {}
+                      _ => { maybe_append_event(self, &Some(self.timelines[hash].resource_access_point.clone()), Event::StartLoop, &line_number); }
+                  }
+              }
+            }
+            ExternalEvent::EndLoop{} => {
+              for (hash, timeline) in self.timelines.clone().iter() {
+                  match timeline.resource_access_point {
+                      ResourceAccessPoint::Function(_) => {}
+                      _ => { maybe_append_event(self, &Some(self.timelines[hash].resource_access_point.clone()), Event::EndLoop, &line_number); }
+                  }
+              }
+            }
+            // ExternalEvent::StartLoop {} => {
+            //   // maybe_append_event(self, resource_access_point, Event::StartLoop, &line_number)
+            // }
+            // ExternalEvent::EndLoop {} => {
+            //   // maybe_append_event(self, resource_access_point, Event::EndLoop, &line_number)
+            // } 
             _ => {},
         }
 
