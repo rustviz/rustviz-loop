@@ -532,3 +532,19 @@ pub fn structure(my_name: &String) -> String {
         my_name_fmt
     )
 }
+
+pub fn start_cond(my_name: &String) -> String {
+    format!("enters an {0} block", my_name)
+}
+
+pub fn end_cond() -> String {
+    format!("finsihes an entire conditional block")
+}
+
+pub fn start_loop(my_name: &String) -> String {
+  format!("{0} owns a resource at the start of every iteration of the loop", my_name)
+}
+
+pub fn end_loop() -> String {
+  format!("exit a loop")
+}
